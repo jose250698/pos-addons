@@ -2,6 +2,7 @@
 # Copyright 2018 Kolushov Alexandr <https://it-projects.info/team/KolushovAlexandr>
 # License MIT (https://opensource.org/licenses/MIT).
 from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 from odoo.tools import float_is_zero
 
 SO_CHANNEL = "pos_sale_orders"
@@ -64,7 +65,23 @@ class PosOrder(models.Model):
     @api.model
     def process_invoices_creation(self, sale_order_id):
         order = self.env["sale.order"].browse(sale_order_id)
-        inv_id = order._create_invoices(final=True)
+
+        # try to validate pickings, raise an error if no reserved quantities for at least one product
+        for picking in order.picking_ids:
+            if picking.state not in ['done', 'cancel']:
+                picking.action_assign()
+                picking.action_confirm()
+                unavailable_products = picking.move_ids_without_package.filtered(lambda mv: mv.reserved_availability < mv.product_uom_qty)
+                if unavailable_products:
+                    message = ''
+                    for up in unavailable_products:
+                        message += '\n {}'.format(up.product_id.display_name)
+                    raise ValidationError('No hay cantidades disponibles de los productos: {}'.format(message))
+                for mv in picking.move_ids_without_package:
+                    mv.quantity_done = mv.product_uom_qty
+                picking.button_validate()
+
+        inv_id = order._create_invoices()
         inv_id.action_post()
         return inv_id.id
 

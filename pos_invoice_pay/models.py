@@ -2,6 +2,7 @@
 # Copyright 2018 Kolushov Alexandr <https://it-projects.info/team/KolushovAlexandr>
 # License MIT (https://opensource.org/licenses/MIT).
 from odoo import _, api, fields, models
+from odoo.tools import float_is_zero
 
 SO_CHANNEL = "pos_sale_orders"
 INV_CHANNEL = "pos_invoices"
@@ -34,12 +35,17 @@ class PosOrder(models.Model):
             cashier = invoice["data"]["user_id"]
             writeoff_acc_id = False
             payment_difference_handling = "open"
-
+            payment_method_id = invoice['data']['statement_ids'][0][2]['payment_method_id']
+            payment_method_obj = self.env['pos.payment.method'].browse(payment_method_id)
+            journal_id = payment_method_obj.cash_journal_id
+            if not journal_id:
+                journal_id = payment_method_obj.accounting_journal_id
             vals = {
                 "payment_date": invoice["data"]["creation_date"],
                 # "communication": invoice["data"]["invoice_to_pay"]["number"],
                 "payment_type": "inbound",
                 "amount": amount,
+                "journal_id": journal_id and journal_id.id or False,
                 "currency_id": inv_obj.currency_id.id,
                 "partner_id": invoice["data"]["invoice_to_pay"]["partner_id"][0],
                 "partner_type": "customer",
@@ -202,6 +208,49 @@ class PosSession(models.Model):
                 rec.session_payments.mapped("move_id").mapped("amount_total") + [0]
             )
 
+    session_invoices_cash_total = fields.Float(
+        "Efectivo facturas contabilidad", compute="_compute_session_invoices_cash_total"
+    )
+
+    def _compute_session_invoices_cash_total(self):
+        for rec in self:
+            cash_payments = rec.session_payments.filtered(lambda sp: sp.journal_id.type == 'cash')
+            rec.session_invoices_cash_total = sum(
+                cash_payments.mapped('move_id.amount_total') + [0]
+            )
+
+    # cash_register_balance_end_real = fields.Monetary(
+    #     compute='_cash_register_balance_end_real',
+    #     related=None,
+    #     string="Ending Balance",
+    #     help="Total of closing cash control lines.",
+    #     readonly=True)
+    #
+    # @api.depends('cash_register_id', 'cash_register_id.balance_end_real', 'session_invoices_cash_total')
+    # def _cash_register_balance_end_real(self):
+    #     for rec in self:
+    #         rec.cash_register_balance_end_real = rec.cash_register_id.balance_end_real + rec.session_invoices_cash_total
+
+    @api.depends('payment_method_ids', 'order_ids', 'cash_register_balance_start', 'cash_register_id')
+    def _compute_cash_balance(self):
+        for session in self:
+            cash_payment_method = session.payment_method_ids.filtered('is_cash_count')[:1]
+            if cash_payment_method:
+                total_cash_payment = 0.0
+                result = self.env['pos.payment'].read_group([('session_id', '=', session.id), ('payment_method_id', '=', cash_payment_method.id)], ['amount'], ['session_id'])
+                if result:
+                    total_cash_payment = result[0]['amount']
+                session.cash_register_total_entry_encoding = session.cash_register_id.total_entry_encoding + (
+                    0.0 if session.state == 'closed' else total_cash_payment
+                )
+                session.cash_register_balance_end = session.cash_register_balance_start + session.cash_register_total_entry_encoding + session.session_invoices_cash_total
+                session.cash_register_difference = session.cash_register_balance_end_real - session.cash_register_balance_end
+            else:
+                session.cash_register_total_entry_encoding = 0.0
+                session.cash_register_balance_end = 0.0 + session.session_invoices_cash_total
+                session.cash_register_difference = 0.0
+
+
     def action_invoice_payments(self):
         payments = self.env["account.payment"].search(
             [("pos_session_id", "in", self.ids)]
@@ -216,3 +265,9 @@ class PosSession(models.Model):
             "view_type": "form",
             "view_mode": "tree,form",
         }
+
+
+class PosPaymentMethod(models.Model):
+    _inherit = 'pos.payment.method'
+
+    accounting_journal_id = fields.Many2one('account.journal', string='Diario para facturas desde contabilidad')

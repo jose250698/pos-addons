@@ -23,7 +23,7 @@ odoo.define("pos_invoices", function (require) {
             "invoice_status",
         ],
         domain: [
-            ["invoice_status", "=", "to invoice"],
+            ["invoice_status", "in", ["no", "to invoice"]],
             ["state", "=", "sale"],
         ],
         loaded: function (self, sale_orders) {
@@ -247,7 +247,7 @@ odoo.define("pos_invoices", function (require) {
                 order = {},
                 id = 0,
                 i = 0,
-                client = this.get_client(),
+                // client = this.get_client(),
                 orders_to_mute = _.filter(this.db.get_orders(), function (mtd_order) {
                     return mtd_order.data.invoice_to_pay;
                 });
@@ -263,12 +263,12 @@ odoo.define("pos_invoices", function (require) {
                     return !_.contains(muted_invoices_ids, inv.id);
                 });
             }
-            if (client) {
-                invoices = _.filter(invoices, function (inv) {
-                    return inv.partner_id[0] === client.id;
-                });
-                return invoices;
-            }
+            // if (client) {
+            //     invoices = _.filter(invoices, function (inv) {
+            //         return inv.partner_id[0] === client.id;
+            //     });
+            //     return invoices;
+            // }
             invoices = _.filter(invoices, function (inv) {
                 return (
                     inv.state === "posted" &&
@@ -279,13 +279,13 @@ odoo.define("pos_invoices", function (require) {
         },
 
         get_sale_order_to_render: function (sale_orders) {
-            var client = this.get_client();
-            if (client) {
-                sale_orders = _.filter(sale_orders, function (so) {
-                    return so.partner_id[0] === client.id;
-                });
-                return sale_orders;
-            }
+            // var client = this.get_client();
+            // if (client) {
+            //     sale_orders = _.filter(sale_orders, function (so) {
+            //         return so.partner_id[0] === client.id;
+            //     });
+            //     return sale_orders;
+            // }
             return sale_orders;
         },
     });

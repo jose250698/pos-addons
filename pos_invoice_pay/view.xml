@@ -69,6 +69,25 @@
                     <field name="session_invoices_total" widget="statinfo" />
                 </button>
             </xpath>
+            <xpath expr="//notebook/page[@name='cash_control']/group/group/div[1]/group[2]" position="after">
+                <group style="margin:0;padding:0;" attrs="{'invisible' : [('state', 'in', ['opening_control', 'closed'])]}">
+                    <field style="text-align:right;margin:0;padding:0;" name="session_invoices_cash_total" widget="monetary" options="{'currency_field': 'currency_id'}" string="+ Efectivo facturas contabilidad"/>
+                </group>
+                <group style="margin:0;padding:0;" attrs="{'invisible' : [('state', '!=', 'closed')]}">
+                    <field style="text-align:right;margin:0;padding:0;" name="session_invoices_cash_total" widget="monetary" options="{'currency_field': 'currency_id'}" string="+ Efectivo facturas contabilidad"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+    <!--POS PAYMENT METHOD-->
+    <record id="pos_payment_method_view_form_inherit_pos_invoice_pay" model="ir.ui.view">
+        <field name="name">pos_payment_method_view_form_inherit_pos_invoice_pay</field>
+        <field name="model">pos.payment.method</field>
+        <field name="inherit_id" ref="point_of_sale.pos_payment_method_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='split_transactions']" position="after">
+                <field name="accounting_journal_id" required="1"/>
+            </xpath>
         </field>
     </record>
 </odoo>

@@ -36,6 +36,8 @@ odoo.define("pos_invoice_pay.InvoicePaymentScreen", function (require) {
             }
 
             async validateOrder(isForceValidate) {
+                const invoiceToPayPartnerId = this.currentOrder.invoice_to_pay.partner_id[0];
+                this.currentOrder.set_client(this.env.pos.db.get_partner_by_id(invoiceToPayPartnerId));
                 const order = this.currentOrder;
                 if (
                     !this.env.pos.config.pos_invoice_pay_writeoff_account_id &&

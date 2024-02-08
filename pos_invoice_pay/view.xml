@@ -77,6 +77,11 @@
                     <field style="text-align:right;margin:0;padding:0;" name="session_invoices_cash_total" widget="monetary" options="{'currency_field': 'currency_id'}" string="+ Efectivo facturas contabilidad"/>
                 </group>
             </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Transacciones del extracto">
+                    <field name="statement_line_ids" readonly="True"/>
+                </page>
+            </xpath>
         </field>
     </record>
     <!--POS PAYMENT METHOD-->

@@ -236,6 +236,8 @@ class PosSession(models.Model):
                 cash_payments.mapped('move_id.amount_total') + [0]
             )
 
+    statement_line_ids = fields.One2many(related='statement_ids.line_ids')
+
     # cash_register_balance_end_real = fields.Monetary(
     #     compute='_cash_register_balance_end_real',
     #     related=None,
